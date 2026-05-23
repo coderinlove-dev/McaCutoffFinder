@@ -28,9 +28,8 @@ def migrate():
         print(f"Migrating table: {table}...")
         df = pd.read_sql_query(f"SELECT * FROM {table}", sqlite_conn)
         
-        # In PostgreSQL, we might want to handle serial/identity columns
-        # For a simple migration, we just overwrite
-        df.to_sql(table, pg_engine, if_exists='replace', index=False)
+        # Use append to preserve the schema created by Prisma
+        df.to_sql(table, pg_engine, if_exists='append', index=False)
         print(f"Successfully migrated {len(df)} rows to {table}")
 
     sqlite_conn.close()

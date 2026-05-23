@@ -1,8 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 import Database from 'better-sqlite3';
 import path from 'path';
+import 'dotenv/config';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+});
 const sqlite = new Database(path.join(process.cwd(), '..', 'database', 'mca_cutoffs.db'));
 
 async function migrate() {
