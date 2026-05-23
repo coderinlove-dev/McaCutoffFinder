@@ -3,5 +3,6 @@ pandas
 tabula-py
 camelot-py[cv]
 sqlalchemy
+psycopg2-binary
 pydantic
 pytest

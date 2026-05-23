@@ -1,0 +1,56 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model PdfSource {
+  id              Int         @id @default(autoincrement())
+  fileName        String      @unique @map("file_name")
+  sourceLabel     String?     @map("source_label")
+  courseName      String?     @map("course_name")
+  academicYear    String?     @map("academic_year")
+  capRound        Int?        @map("cap_round")
+  candidateScope  String?     @map("candidate_scope")
+  uploadedAt      DateTime    @default(now()) @map("uploaded_at")
+  notes           String?
+  cutoffRows      CutoffRow[]
+
+  @@map("pdf_sources")
+}
+
+model Institute {
+  id             Int         @id @default(autoincrement())
+  instituteCode  String      @unique @map("institute_code")
+  instituteName  String      @map("institute_name")
+  cutoffRows     CutoffRow[]
+
+  @@map("institutes")
+}
+
+model CutoffRow {
+  id             Int        @id @default(autoincrement())
+  sourceId       Int        @map("source_id")
+  instituteId    Int        @map("institute_id")
+  academicYear   String?    @map("academic_year")
+  capRound       Int?       @map("cap_round")
+  candidateType  String?    @map("candidate_type")
+  category       String?
+  seatType       String?    @map("seat_type")
+  universityType String?    @map("university_type")
+  cutoffValue    Float?     @map("cutoff_value")
+  cutoffUnit     String?    @map("cutoff_unit")
+  rawRowText     String?    @map("raw_row_text")
+  pageNumber     Int?       @map("page_number")
+  rowHash        String?    @unique @map("row_hash")
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  source    PdfSource @relation(fields: [sourceId], references: [id])
+  institute Institute @relation(fields: [instituteId], references: [id])
+
+  @@map("cutoff_rows")
+}

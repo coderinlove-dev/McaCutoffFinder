@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { EnrichedCutoffRow, SearchResult } from '@/lib/types';
 import { classifyChance } from '@/lib/chance-logic';
 
@@ -18,34 +18,66 @@ export async function searchCutoffs(formData: FormData) {
   // EWS Logic: If EWS is selected, force category to EWS
   const searchCategory = isEws ? 'EWS' : category;
 
-  // We query for a wide range around the percentile to fill buckets
-  // Dream: cutoff > percentile (up to +5)
-  // Secure: cutoff < percentile (up to -10)
-  const query = `
-    SELECT 
-      cr.*, 
-      i.institute_name, 
-      i.institute_code,
-      ps.file_name as source_file
-    FROM cutoff_rows cr
-    JOIN institutes i ON cr.institute_id = i.id
-    JOIN pdf_sources ps ON cr.source_id = ps.id
-    WHERE cr.candidate_type = ?
-      AND (cr.university_type = ? OR cr.university_type = 'SL')
-      AND cr.category = ?
-      AND cr.cutoff_value BETWEEN ? AND ?
-    ORDER BY ABS(cr.cutoff_value - ?) ASC
-    LIMIT 50
-  `;
-
   // Ranges to fetch: from percentile - 10 to percentile + 5
   const minCutoff = Math.max(0, percentile - 15);
   const maxCutoff = Math.min(100, percentile + 5);
 
-  const stmt = db.prepare(query);
-  const rows = stmt.all(candidateType, universityType, searchCategory, minCutoff, maxCutoff, percentile) as EnrichedCutoffRow[];
+  try {
+    const rows = await prisma.cutoffRow.findMany({
+      where: {
+        candidateType,
+        category: searchCategory,
+        OR: [
+          { universityType },
+          { universityType: 'SL' }
+        ],
+        cutoffValue: {
+          gte: minCutoff,
+          lte: maxCutoff,
+        },
+      },
+      include: {
+        institute: true,
+        source: true,
+      },
+      orderBy: {
+        cutoffValue: 'asc',
+      },
+      take: 50,
+    });
 
-  const results: SearchResult[] = rows.map(row => classifyChance(row, percentile));
+    // Map Prisma result to existing EnrichedCutoffRow type
+    const enrichedRows: EnrichedCutoffRow[] = rows.map(row => ({
+      id: row.id,
+      source_id: row.sourceId,
+      institute_id: row.instituteId,
+      academic_year: row.academicYear || '',
+      cap_round: row.capRound || 0,
+      candidate_type: row.candidateType || '',
+      category: row.category || '',
+      seat_type: row.seatType || '',
+      university_type: row.universityType || '',
+      cutoff_value: row.cutoffValue || 0,
+      cutoff_unit: row.cutoffUnit || '',
+      raw_row_text: row.rawRowText || '',
+      page_number: row.pageNumber || 0,
+      row_hash: row.rowHash || '',
+      created_at: row.createdAt.toISOString(),
+      institute_name: row.institute.instituteName,
+      institute_code: row.institute.instituteCode,
+      source_file: row.source.fileName,
+    }));
 
-  return { results };
+    // Sort by proximity to percentile (Prisma doesn't support ABS diff sorting natively in findMany)
+    enrichedRows.sort((a, b) => 
+      Math.abs(a.cutoff_value - percentile) - Math.abs(b.cutoff_value - percentile)
+    );
+
+    const results: SearchResult[] = enrichedRows.map((row) => classifyChance(row, percentile));
+
+    return { results };
+  } catch (error) {
+    console.error('Search error:', error);
+    return { error: 'Failed to fetch results from database.' };
+  }
 }

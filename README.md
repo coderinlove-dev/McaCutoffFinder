@@ -64,9 +64,25 @@ A modern Next.js 15 web app for students to search cutoffs.
    npm run dev
    ```
 
+## Deployment
+
+### Frontend (Vercel)
+1. Push this repository to GitHub/GitLab.
+2. Connect the repository to Vercel.
+3. Set the **Root Directory** to `webapp`.
+4. Add the `DATABASE_URL` environment variable.
+
+### Database (Supabase)
+1. Create a new project on Supabase.
+2. Get the PostgreSQL connection string.
+3. Locally, set `DATABASE_URL` in your `.env` file.
+4. Run the migration script:
+   ```bash
+   python scripts/migrate_to_supabase.py
+   ```
+
 ### Features
 - Mobile-first responsive design.
 - Server Actions for fast database queries.
-- EWS filter support.
-- Chance-based college bucketing (Dream, Target, Safe, Secure).
-- SQLite backend with migration path to Supabase.
+- Hybrid Database Support (SQLite for dev, Postgres for prod).
+- Chance-based college bucketing.
