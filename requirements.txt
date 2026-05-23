@@ -1,0 +1,7 @@
+pdfplumber
+pandas
+tabula-py
+camelot-py[cv]
+sqlalchemy
+pydantic
+pytest
