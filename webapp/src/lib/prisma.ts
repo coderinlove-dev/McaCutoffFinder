@@ -56,4 +56,6 @@ declare global {
 
 export const prisma = globalThis.prismaGlobal ?? prismaClientSingleton();
 
-if (process.env.NODE_ENV !== 'production') globalThis.prismaGlobal = prisma;
+// In Next.js, we want to persist the client across hot-reloads in dev
+// and across function invocations in production if possible.
+globalThis.prismaGlobal = prisma;

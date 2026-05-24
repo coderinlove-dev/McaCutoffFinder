@@ -31,30 +31,51 @@ export async function searchCutoffs(formData: FormData) {
     const totalRows = await prisma.cutoffRow.count();
     console.log(`[Search] Total rows in DB: ${totalRows}`);
 
-    const rows = await prisma.cutoffRow.findMany({
+    let rows = await prisma.cutoffRow.findMany({
       where: {
         candidateType: searchCand,
         category: searchCategory,
-        OR: [
-          { universityType },
-          { universityType: 'SL' }
-        ],
-        cutoffValue: {
-          gte: minCutoff,
-          lte: maxCutoff,
-        },
+        OR: [{ universityType }, { universityType: 'SL' }],
+        cutoffValue: { gte: minCutoff, lte: maxCutoff },
       },
-      include: {
-        institute: true,
-        source: true,
-      },
-      orderBy: {
-        cutoffValue: 'desc',
-      },
+      include: { institute: true, source: true },
+      orderBy: { cutoffValue: 'desc' },
       take: 100,
     });
 
-    console.log(`[Search] Found ${rows.length} rows in database.`);
+    console.log(`[Search] Primary search found ${rows.length} rows.`);
+
+    // Fallback 1: Broaden University Type if zero results (e.g. if HU/OHU mislabeled)
+    if (rows.length === 0) {
+      console.log(`[Search] Fallback 1: Searching all university types for ${searchCategory}`);
+      rows = await prisma.cutoffRow.findMany({
+        where: {
+          candidateType: searchCand,
+          category: searchCategory,
+          cutoffValue: { gte: minCutoff, lte: maxCutoff },
+        },
+        include: { institute: true, source: true },
+        orderBy: { cutoffValue: 'desc' },
+        take: 100,
+      });
+    }
+
+    // Fallback 2: Broaden Candidate Type if still zero
+    if (rows.length === 0) {
+      console.log(`[Search] Fallback 2: Searching all candidate types for ${searchCategory}`);
+      rows = await prisma.cutoffRow.findMany({
+        where: {
+          category: searchCategory,
+          cutoffValue: { gte: minCutoff, lte: maxCutoff },
+        },
+        include: { institute: true, source: true },
+        orderBy: { cutoffValue: 'desc' },
+        take: 100,
+      });
+    }
+
+    console.log(`[Search] Final result count: ${rows.length}`);
+
 
     // Map Prisma result to existing EnrichedCutoffRow type
     const enrichedRows: EnrichedCutoffRow[] = rows.map(row => ({
