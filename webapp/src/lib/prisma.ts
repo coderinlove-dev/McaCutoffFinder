@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+
+// Handle Postgres Numeric types as floats
+types.setTypeParser(1700, (val) => parseFloat(val));
 
 const prismaClientSingleton = () => {
   const connectionString = process.env.DATABASE_URL;
@@ -8,7 +11,15 @@ const prismaClientSingleton = () => {
     throw new Error('DATABASE_URL is not set');
   }
 
-  const pool = new Pool({ connectionString });
+  // Use a single connection per function execution for serverless
+  const pool = new Pool({ 
+    connectionString,
+    max: 1, 
+    ssl: {
+      rejectUnauthorized: false
+    }
+  });
+  
   const adapter = new PrismaPg(pool);
   
   return new PrismaClient({
