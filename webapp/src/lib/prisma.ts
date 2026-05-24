@@ -11,13 +11,19 @@ const prismaClientSingleton = () => {
     throw new Error('DATABASE_URL is not set');
   }
 
+  // Diagnostic log for host (masking password)
+  const hostMatch = connectionString.match(/@([^:/]+)/);
+  const host = hostMatch ? hostMatch[1] : 'unknown';
+  console.log(`[Prisma] Initializing client with host: ${host}`);
+
   // Use a single connection per function execution for serverless
   const pool = new Pool({ 
     connectionString,
     max: 1, 
     ssl: {
       rejectUnauthorized: false
-    }
+    },
+    connectionTimeoutMillis: 10000,
   });
   
   const adapter = new PrismaPg(pool);
