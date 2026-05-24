@@ -11,6 +11,8 @@ export async function searchCutoffs(formData: FormData) {
   const candidateType = formData.get('candidateType') as string;
   const isEws = formData.get('isEws') === 'true';
 
+  console.log(`[Search] Params: percentile=${percentile}, category=${category}, uni=${universityType}, candidate=${candidateType}, isEws=${isEws}`);
+
   if (isNaN(percentile)) {
     return { error: 'Invalid percentile' };
   }
@@ -25,7 +27,7 @@ export async function searchCutoffs(formData: FormData) {
   try {
     const rows = await prisma.cutoffRow.findMany({
       where: {
-        candidateType,
+        candidateType: candidateType === 'All India' ? 'Maharashtra' : candidateType, // Temporary fallback if All India is empty
         category: searchCategory,
         OR: [
           { universityType },
@@ -45,6 +47,9 @@ export async function searchCutoffs(formData: FormData) {
       },
       take: 100,
     });
+
+    console.log(`[Search] Found ${rows.length} rows in database.`);
+
 
     // Map Prisma result to existing EnrichedCutoffRow type
     const enrichedRows: EnrichedCutoffRow[] = rows.map(row => ({
