@@ -7,12 +7,14 @@ import { EnrichedCutoffRow, SearchResult, ChanceBucket } from './types';
 export function classifyChance(row: EnrichedCutoffRow, userPercentile: number): SearchResult {
   const difference = userPercentile - row.cutoff_value;
   
-  // Basic classification based on requested ranges
+  // Basic classification based on requested strict ranges
   let chance_label: ChanceBucket = 'Target';
-  if (difference < -0.5) chance_label = 'Dream';
-  else if (difference >= -0.5 && difference <= 1.0) chance_label = 'Target';
-  else if (difference > 1.0 && difference <= 3.0) chance_label = 'Safe';
-  else chance_label = 'Secure';
+  if (difference >= -2.0 && difference <= -1.0) chance_label = 'Dream';
+  else if (difference >= -0.5 && difference <= 0.5) chance_label = 'Target';
+  else if (difference >= 2.0 && difference <= 3.0) chance_label = 'Safe';
+  else if (difference > 3.0) chance_label = 'Secure';
+  else if (difference < -2.0) chance_label = 'Dream'; // Outside strict range but still "harder"
+  else if (difference > 0.5 && difference < 2.0) chance_label = 'Target'; // Transition zone
 
   return {
     ...row,

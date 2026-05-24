@@ -41,9 +41,9 @@ export async function searchCutoffs(formData: FormData) {
         source: true,
       },
       orderBy: {
-        cutoffValue: 'asc',
+        cutoffValue: 'desc',
       },
-      take: 50,
+      take: 100,
     });
 
     // Map Prisma result to existing EnrichedCutoffRow type

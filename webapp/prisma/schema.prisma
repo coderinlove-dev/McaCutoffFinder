@@ -36,6 +36,7 @@ model CutoffRow {
   id             Int        @id @default(autoincrement())
   sourceId       Int        @map("source_id")
   instituteId    Int        @map("institute_id")
+  courseCode     String?    @map("course_code")
   academicYear   String?    @map("academic_year")
   capRound       Int?       @map("cap_round")
   candidateType  String?    @map("candidate_type")

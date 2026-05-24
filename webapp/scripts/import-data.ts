@@ -67,6 +67,7 @@ async function migrate() {
           id: row.id,
           sourceId: row.source_id,
           instituteId: row.institute_id,
+          courseCode: row.course_code,
           academicYear: row.academic_year,
           capRound: row.cap_round,
           candidateType: row.candidate_type,

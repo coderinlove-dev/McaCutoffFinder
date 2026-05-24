@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS cutoff_rows (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source_id INTEGER REFERENCES pdf_sources(id),
     institute_id INTEGER REFERENCES institutes(id),
+    course_code TEXT,
     academic_year TEXT,
     cap_round INTEGER,
     candidate_type TEXT,
@@ -92,10 +93,10 @@ def import_data():
             # Insert cutoff row
             cursor.execute("""
                 INSERT OR IGNORE INTO cutoff_rows 
-                (source_id, institute_id, academic_year, cap_round, candidate_type, category, seat_type, university_type, cutoff_value, cutoff_unit, raw_row_text, page_number, row_hash)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (source_id, institute_id, course_code, academic_year, cap_round, candidate_type, category, seat_type, university_type, cutoff_value, cutoff_unit, raw_row_text, page_number, row_hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                source_id, inst_id, row['academic_year'], row['cap_round'], 
+                source_id, inst_id, row['course_code'], row['academic_year'], row['cap_round'], 
                 row['candidate_type'], row['normalized_category'], row['seat_type'],
                 row['university_type'], row['cutoff_value'], row['cutoff_unit'],
                 row['raw_row_text'], row['page_number'], row['row_hash']

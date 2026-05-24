@@ -11,11 +11,12 @@ from config import PDF_DIR, OUTPUT_DIR
 
 def get_row_hash(row_data):
     """Generates a unique hash for a cutoff row."""
-    # Using core fields to generate hash
-    hash_str = f"{row_data['institute_code']}_{row_data['cap_round']}_{row_data['category']}_{row_data['seat_type']}_{row_data['cutoff_value']}"
+    # Using core fields including course_code to generate hash
+    hash_str = f"{row_data['institute_code']}_{row_data['course_code']}_{row_data['cap_round']}_{row_data['category']}_{row_data['seat_type']}_{row_data['cutoff_value']}"
     return hashlib.sha256(hash_str.encode()).hexdigest()
 
 class CutoffExtractor:
+    # ... existing __init__ and _detect_round ...
     def __init__(self, pdf_path):
         self.pdf_path = pdf_path
         self.filename = os.path.basename(pdf_path)
@@ -46,6 +47,7 @@ class CutoffExtractor:
         
         current_section = None
         current_allotment_type = None
+        current_candidate_type = "Maharashtra" # Default
         
         headers = []
         merit_numbers = []
@@ -55,6 +57,12 @@ class CutoffExtractor:
         while i < len(lines):
             line = lines[i].strip()
             
+            # Detect Candidate Type / Section
+            if "All India Seats" in line:
+                current_candidate_type = "All India"
+            elif "Maharashtra State Seats" in line:
+                current_candidate_type = "Maharashtra"
+
             # Detect Institute
             inst_match = re.match(r'^(\d{4})\s*-\s*(.*)', line)
             if inst_match:
@@ -114,7 +122,7 @@ class CutoffExtractor:
                                             'course_code': self.current_course['code'] if self.current_course else "UNKNOWN",
                                             'academic_year': self.academic_year,
                                             'cap_round': self.current_round,
-                                            'candidate_type': 'Maharashtra',
+                                            'candidate_type': current_candidate_type,
                                             'category': cat,
                                             'seat_type': cat,
                                             'university_type': current_section,
