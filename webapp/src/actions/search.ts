@@ -24,10 +24,13 @@ export async function searchCutoffs(formData: FormData) {
   const minCutoff = Math.max(0, percentile - 15);
   const maxCutoff = Math.min(100, percentile + 5);
 
+  const searchCand = candidateType === 'All India' ? 'Maharashtra' : candidateType;
+  console.log(`[Search] Querying: cand=${searchCand}, cat=${searchCategory}, uni=${universityType}, range=${minCutoff.toFixed(2)}-${maxCutoff.toFixed(2)}`);
+
   try {
     const rows = await prisma.cutoffRow.findMany({
       where: {
-        candidateType: candidateType === 'All India' ? 'Maharashtra' : candidateType, // Temporary fallback if All India is empty
+        candidateType: searchCand,
         category: searchCategory,
         OR: [
           { universityType },
@@ -49,7 +52,6 @@ export async function searchCutoffs(formData: FormData) {
     });
 
     console.log(`[Search] Found ${rows.length} rows in database.`);
-
 
     // Map Prisma result to existing EnrichedCutoffRow type
     const enrichedRows: EnrichedCutoffRow[] = rows.map(row => ({
@@ -81,8 +83,12 @@ export async function searchCutoffs(formData: FormData) {
     const results: SearchResult[] = enrichedRows.map((row) => classifyChance(row, percentile));
 
     return { results };
-  } catch (error) {
-    console.error('Search error:', error);
-    return { error: 'Failed to fetch results from database.' };
+  } catch (error: any) {
+    console.error('[Search] Database Error:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta
+    });
+    return { error: `Search failed: ${error.message || 'Unknown database error'}` };
   }
-}
+  }
