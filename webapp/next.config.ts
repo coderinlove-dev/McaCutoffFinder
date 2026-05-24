@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
       fullUrl: true,
     },
   },
+  serverExternalPackages: ["@prisma/client", "prisma"],
 };
 
 export default nextConfig;
