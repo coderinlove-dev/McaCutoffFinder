@@ -28,6 +28,9 @@ export async function searchCutoffs(formData: FormData) {
   console.log(`[Search] Querying: cand=${searchCand}, cat=${searchCategory}, uni=${universityType}, range=${minCutoff.toFixed(2)}-${maxCutoff.toFixed(2)}`);
 
   try {
+    const totalRows = await prisma.cutoffRow.count();
+    console.log(`[Search] Total rows in DB: ${totalRows}`);
+
     const rows = await prisma.cutoffRow.findMany({
       where: {
         candidateType: searchCand,
@@ -91,4 +94,4 @@ export async function searchCutoffs(formData: FormData) {
     });
     return { error: `Search failed: ${error.message || 'Unknown database error'}` };
   }
-  }
+}
