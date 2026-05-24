@@ -24,8 +24,8 @@ export function classifyChance(row: EnrichedCutoffRow, userPercentile: number): 
 }
 
 /**
- * Strictly enforces bucket distribution and range expansion as per requirements.
- * Dream: 2-3, Target: 5-6, Safe: 4-5, Secure: 2-3
+ * Strictly enforces logical consistency and bucket distribution.
+ * Strategy: Sort all by cutoff DESC, then allocate top-down.
  */
 export function groupAndSortResults(results: SearchResult[]) {
   const buckets: Record<ChanceBucket, SearchResult[]> = {
@@ -35,59 +35,57 @@ export function groupAndSortResults(results: SearchResult[]) {
     Secure: [],
   };
 
-  // 1. Initial assignment based on STRICT range rules
-  // Dream: cutoff +1 to +2 (diff -1 to -2)
-  // Target: cutoff ±0.5 (diff -0.5 to 0.5)
-  // Safe: cutoff -2 to -3 (diff 2 to 3)
-  // Secure: cutoff -3 to -4+ (diff 3+)
-  const remaining: SearchResult[] = [];
-  results.forEach(res => {
-    const d = res.difference;
-    if (d >= -2.0 && d <= -1.0) buckets.Dream.push(res);
-    else if (d >= -0.5 && d <= 0.5) buckets.Target.push(res);
-    else if (d >= 2.0 && d <= 3.0) buckets.Safe.push(res);
-    else if (d > 3.0) buckets.Secure.push(res);
-    else remaining.push(res);
-  });
+  if (results.length === 0) return buckets;
 
-  // 2. Enforce Counts and Priority Expansion
-  const config = {
-    Dream: { target: 3, center: -1.5 },
-    Target: { target: 6, center: 0 },
-    Safe: { target: 5, center: 2.5 },
-    Secure: { target: 3, center: 4.5 },
-  };
+  // 1. GLOBAL SORT: Highest cutoffs first
+  // This is the "Secret Sauce" to logical consistency.
+  const sorted = [...results].sort((a, b) => b.cutoff_value - a.cutoff_value);
 
-  const priority: ChanceBucket[] = ['Dream', 'Target', 'Safe', 'Secure'];
+  // 2. SEQUENTIAL ALLOCATION
+  // We fill buckets from the top of the sorted list to maintain logical order.
+  const config = [
+    { key: 'Dream' as const, count: 3, minDiff: -999, maxDiff: 0 },   // Harder/Equal
+    { key: 'Target' as const, count: 6, minDiff: -0.5, maxDiff: 1.5 }, // Near match
+    { key: 'Safe' as const, count: 5, minDiff: 1.5, maxDiff: 3.5 },    // Easier
+    { key: 'Secure' as const, count: 3, minDiff: 3.5, maxDiff: 999 },  // Much easier
+  ];
 
-  // First, cap any buckets exceeding their target to keep them balanced
-  priority.forEach(key => {
-    if (buckets[key].length > config[key].target) {
-      buckets[key].sort((a, b) => Math.abs(a.difference - config[key].center) - Math.abs(b.difference - config[key].center));
-      const excess = buckets[key].splice(config[key].target);
-      remaining.push(...excess);
-    }
-  });
+  let currentIdx = 0;
 
-  // Then, expand ranges for buckets that are under their minimum target
-  priority.forEach(key => {
-    const needed = config[key].target - buckets[key].length;
-    if (needed > 0 && remaining.length > 0) {
-      // Pick the best fits from the remaining pool
-      remaining.sort((a, b) => Math.abs(a.difference - config[key].center) - Math.abs(b.difference - config[key].center));
-      const picked = remaining.splice(0, needed);
-      buckets[key].push(...picked);
-    }
-  });
+  // DREAM BUCKET (Special Case: Only if cutoff >= user score - 0.5)
+  // We don't want to show 90% colleges as "Dream" for a 98% user.
+  const dreamCandidates = sorted.slice(currentIdx, currentIdx + 3);
+  const actualDream = dreamCandidates.filter(c => c.difference <= 0.5);
+  
+  if (actualDream.length > 0) {
+    buckets.Dream = actualDream;
+    currentIdx += actualDream.length;
+  }
 
-  // 3. Final Re-Classification and Internal Sorting
-  priority.forEach(key => {
-    buckets[key].forEach(res => {
-      res.chance_label = key;
+  // TARGET BUCKET (Next 6)
+  const targetCount = 6;
+  const targetEnd = Math.min(currentIdx + targetCount, sorted.length);
+  buckets.Target = sorted.slice(currentIdx, targetEnd);
+  currentIdx = targetEnd;
+
+  // SAFE BUCKET (Next 5)
+  const safeCount = 5;
+  const safeEnd = Math.min(currentIdx + safeCount, sorted.length);
+  buckets.Safe = sorted.slice(currentIdx, safeEnd);
+  currentIdx = safeEnd;
+
+  // SECURE BUCKET (Next 3)
+  const secureCount = 3;
+  const secureEnd = Math.min(currentIdx + secureCount, sorted.length);
+  buckets.Secure = sorted.slice(currentIdx, secureEnd);
+
+  // 3. FINAL LABEL SYNC
+  // Ensure the label matches the bucket it ended up in
+  Object.keys(buckets).forEach((key) => {
+    const bucketKey = key as ChanceBucket;
+    buckets[bucketKey].forEach(res => {
+      res.chance_label = bucketKey;
     });
-    // "Sorting must be done only inside each bucket after classification."
-    // We sort by absolute difference to show most relevant colleges first within each bucket.
-    buckets[key].sort((a, b) => Math.abs(a.difference) - Math.abs(b.difference));
   });
 
   return buckets;
