@@ -16,15 +16,31 @@ const prismaClientSingleton = () => {
   const host = hostMatch ? hostMatch[1] : 'unknown';
   console.log(`[Prisma] Initializing client with host: ${host}`);
 
-  // Use a single connection per function execution for serverless
-  const pool = new Pool({ 
-    connectionString,
-    max: 1, 
+  // Create a clean connection string for the pool by removing sslmode
+  // pg driver now treats 'require' as 'verify-full', which we want to override
+  let cleanConnectionString = connectionString;
+  try {
+    const url = new URL(connectionString.replace('postgresql://', 'http://')); // URL parser helper
+    url.searchParams.delete('sslmode');
+    url.searchParams.delete('ssl');
+    cleanConnectionString = url.toString().replace('http://', 'postgresql://');
+  } catch (e) {
+    console.error('[Prisma] Failed to parse connection string for cleaning');
+  }
+
+  const poolConfig: any = {
+    connectionString: cleanConnectionString,
+    max: 1,
     ssl: {
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     },
     connectionTimeoutMillis: 10000,
-  });
+  };
+
+  // If connection string contains sslmode, we need to ensure the object-based
+  // ssl config takes precedence or remove the parameter. 
+  // We'll trust the object config here.
+  const pool = new Pool(poolConfig);
   
   const adapter = new PrismaPg(pool);
   
